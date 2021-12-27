@@ -17,11 +17,11 @@ class UserRepositoryTest {
    @Test
     public void createUser() {
         userRepository.save(User.builder()
+                .uid("user")
                 .password(passwordEncoder.encode("pass"))
-                .firstName("user")
-                .lastName("shin")
+                .name("shin")
                 .email("berryberry189@naver.com")
-                .roles("ROLE_USER")
+                .roles(Collections.singletonList("ROLE_USER"))
                 .build());
     }
 }
