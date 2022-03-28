@@ -1,73 +1,64 @@
 package com.grace.authorizationserver.config;
 
-import com.grace.authorizationserver.service.CustomUserDetailService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 
 import javax.sql.DataSource;
 
-/**
- * oauth 토큰을 발급해주는 모든 요청을 처리
- */
 @Configuration
 @EnableAuthorizationServer
-@RequiredArgsConstructor
 public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter {
 
-    @Value("${security.oauth2.jwt.signkey}")
-    private String signKey;
+    @Autowired
+    private ClientDetailsService clientDetailsService;
 
-    private final DataSource dataSource;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final CustomUserDetailService customUserDetailService;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
-    /*@Override
-    public void configure(ClientDetailsServiceConfigurer configurer) throws Exception {
-        configurer.inMemory()
-                .withClient("shin-client")
-                .secret("shin-password")
-                .authorizedGrantTypes("password",
-                        "authorization_code",
-                        "refresh_token",
-                        "implicit")
-                .scopes("read", "write", "trust")
-                .accessTokenValiditySeconds(1*60*60)
-                .refreshTokenValiditySeconds(6*60*60);
-    }*/
+    @Autowired
+    private ResourceServerProperties resourceServerProperties;
+
+    @Override
+    public void configure(AuthorizationServerEndpointsConfigurer endpoints)
+            throws Exception {
+        // 인증 과정 endpoint에 대한 설정을 해줍니다.
+        super.configure(endpoints);
+        endpoints.accessTokenConverter(jwtAccessTokenConverter())
+                .authenticationManager(authenticationManager);
+    }
 
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-        clients.jdbc(dataSource).passwordEncoder(passwordEncoder);
+        // oauth_client_details 테이블에 등록된 사용자로 조회합니다.
+        clients.withClientDetails(clientDetailsService);
     }
 
-    // JDBC 방식
-    /*@Override
-    public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-        endpoints.authenticationManager(authenticationManager);
-    }*/
-
-    // JWT 방식
-    @Override
-    public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-        super.configure(endpoints);
-        endpoints.accessTokenConverter(jwtAccessTokenConverter())
-                .userDetailsService(customUserDetailService);
+    @Bean
+    @Primary
+    public JdbcClientDetailsService JdbcClientDetailsService(DataSource dataSource) {
+        // Jdbc(H2 데이터베이스)를 이용한 Oauth client 정보등록을 위한 설정입니다.
+        return new JdbcClientDetailsService(dataSource);
     }
 
     @Bean
     public JwtAccessTokenConverter jwtAccessTokenConverter() {
-        JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
-        converter.setSigningKey(signKey);
-        return converter;
+        // JWT key-value 방식을 사용하기 위한 설정입니다.
+        JwtAccessTokenConverter accessTokenConverter = new JwtAccessTokenConverter();
+        accessTokenConverter.setSigningKey(resourceServerProperties.getJwt().getKeyValue());
+
+        return accessTokenConverter;
     }
+
+
 }
