@@ -47,5 +47,4 @@ public class MysqlPasswordEncoder implements PasswordEncoder {
         }
         return encodedPassword.equals(encode(rawPassword));
     }
-
 }
