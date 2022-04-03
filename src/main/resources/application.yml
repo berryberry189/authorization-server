@@ -20,8 +20,11 @@ logging.level:
 server:
   port: 9000
 
-# signkey를 고정하여 서버가 재부팅해도 갱신키 발급이 가능
 security:
   oauth2:
-    jwt:
-      signkey: 123@#$
+    client:
+      client-id: auth_id
+      client-secre: auth_secret
+    resource:
+      jwt:
+        key-value: jwt_secret_key
